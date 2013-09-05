@@ -1,34 +1,20 @@
 
 network: 'irc.freenode.net'
 port: 6667
-nick: 'bender'
-name: 'DotCloud bot'
-channel: '#dotcloud-bender'
-logs: '~/logs'
+nick: 'gordn'
+name: 'Gordon the Turtle'
+logs: '/logs'
 timezone: 'US/Pacific'
 smtp_server: '127.0.0.1'
 password: 'somepassword!'
 
 standups:
     core:
-        primary_channel: '#dotcloud-bender'
-        standup_channel: '#dotcloud-scrum-standup'
+        dev_channel: '#docker-dev'
+        standup_channel: '#docker-meeting'
         warmup_duration: 60
-        speak_limit: 3
         logfile_name: 'standup'
         send_logs_from:  'standup-list@acme.com'
         send_logs_to:
-            - 'standup.list@acme.com'
-            - 'scrum.master@acme.com'
+            - 'keeb@acme.com'
 
-pagerduty:
-    organization: 'acme'
-    apikey: 'E7px6VVr3PVHZPJq51oa'
-    announce_hour: 10
-    schedules:
-        'OPS level 1': 'PUXRSGYX'
-        'OPS level 2': 'P5FU3J7'
-        'Support': 'XIJBP61'
-    users:
-        'jose@acme.com': 'jose1'
-        'pipo@acme.com': 'pipo42'
