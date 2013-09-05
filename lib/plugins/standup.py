@@ -70,6 +70,8 @@ class Standup(object):
             return
         self._send_msg(target, nick, 'WTF?! Try "help"')
 
+        
+
     def _cmd_start(self, target, nick, args):
         """ start: start a standup
 
@@ -138,6 +140,11 @@ class Standup(object):
             self._send_msg(self._config['standup_channel'], self._current_user,
                     'Hurry up! You reached {0} minutes!'.format(self._config['speak_limit']))
         self._irc.execute_at(int(time.time() + self._config['speak_limit'] * 60), warn_user)
+
+    def _cmd_topic(self, target, nick, args):
+        self._send_msg(target, nick, 'acknowledged. proceed.')
+
+
 
     def _cmd_add(self, target, nick, args):
         """ Add a person to the standup (I won't check if the nick exists on the server) """

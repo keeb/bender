@@ -23,12 +23,10 @@ class Bender(object):
         irc.add_global_handler(event, print_callback)
 
     def _load_plugins(self, irc, server):
-        from plugins import standup, pagerduty
+        from plugins import standup
         # Launch all configured Standups
         for name in self._config['standups']:
             standup.Standup(name, irc, server, self._config, self._config['standups'][name]).run()
-        # PagerDuty notifications
-        pagerduty.PagerDuty(irc, server, self._config).run()
 
     def run(self):
         irc = IRC()
