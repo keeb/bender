@@ -20,6 +20,12 @@ class Standup(object):
         self._user_late_list = None
         self._user_list = None
         self._current_user = None
+        self._action_voting = False
+        self._vote_count = 0
+        self._nicks_voted = None
+
+        self._topics = None
+        self._action_items = None
 
     def _register_handlers(self):
         self._irc.add_global_handler('pubmsg', self._event_pubmsg)
@@ -70,8 +76,6 @@ class Standup(object):
             return
         self._send_msg(target, nick, 'WTF?! Try "help"')
 
-        
-
     def _cmd_start(self, target, nick, args):
         """ start: start a standup
 
@@ -84,7 +88,7 @@ class Standup(object):
             return
         self._owner = nick
         self._server.privmsg(self._config['primary_channel'],
-                'Starting a daily standup "{0}" on {1}'.format(self._name, self._config['standup_channel']))
+                'Starting a standup "{0}" on {1}'.format(self._name, self._config['standup_channel']))
         self._starting = True
         def list_users(conn, event):
             self._irc.remove_global_handler('namreply', list_users)
@@ -96,7 +100,7 @@ class Standup(object):
             self._server.privmsg(self._config['standup_channel'],
                     '{0}: Please say something to be part of the standup (starting in {1} seconds)'.format(
                         ', '.join(users), self._config['warmup_duration']))
-        self._irc.add_global_handler('namreply', list_users)
+            self._irc.add_global_handler('namreply', list_users)
         self._server.names([self._config['standup_channel']])
         nick_list = []
         def gather_reply(conn, event):
@@ -121,6 +125,8 @@ class Standup(object):
             self._archives.new(self._name)
             self._user_late_list = []
             self._parking = []
+            self._topics = []
+            self._action_items = {}
             self._server.privmsg(self._config['standup_channel'],
                     'Let\'s start the standup with {0}'.format(', '.join(nick_list)))
             self._archives.write('*** Starting with: {0}'.format(', '.join(nick_list)))
@@ -139,10 +145,55 @@ class Standup(object):
                 return
             self._send_msg(self._config['standup_channel'], self._current_user,
                     'Hurry up! You reached {0} minutes!'.format(self._config['speak_limit']))
-        self._irc.execute_at(int(time.time() + self._config['speak_limit'] * 60), warn_user)
+            self._irc.execute_at(int(time.time() + self._config['speak_limit'] * 60), warn_user)
 
     def _cmd_topic(self, target, nick, args):
-        self._send_msg(target, nick, 'acknowledged. proceed.')
+        self._send_msg(target, nick, 'topic acknowledged. proceed.')
+        self._topics.append(args)
+        # how the fuck do i log this separately using the current framework?
+
+
+    def _cmd_action(self, target, nick, args):
+        # should probably limit this to the organizer.
+        # voting open to everyone. votes are counted by +1 or -1
+        if self._action_voting:
+            self._send_msg(target, nick, 'vote is already in progress')
+            return
+
+        self._nicks_voted = []
+
+        def gather_reply(conn, event):
+            if not self._action_voting:
+                return
+            nick = event.source().split('!')[0].lower()
+            said = event.arguments()
+            print nick, "said", said
+            if "+1" in said:
+                if nick in self._nicks_voted:
+                    self._server.privmsg(self._config['primary_channel'], "{0} has already voted".format(nick))
+                else:
+                    self._vote_count += 1
+                    self._nicks_voted.append(nick)
+            if "-1" in said:
+                if nick in self._nicks_voted:
+                    self._server.privmsg(self._config['primary_channel'], "{0} has already voted".format(nick))
+                else:
+                    self._vote_count -= 1
+                    self._nicks_voted.append(nick)
+
+
+        self._vote_count = 0
+        self._action_voting = True
+        self._server.privmsg(self._config['primary_channel'], 'action item acknowledged. opening for voting for the next 1 minute')
+        self._irc.add_global_handler('pubmsg', gather_reply)
+
+
+        def vote_end():
+            self._action_voting = False
+            self._server.privmsg(self._config['primary_channel'], "voting has ended. {0} people voted with a total score of {1}".format(len(self._nicks_voted), self._vote_count))
+            
+
+        self._irc.execute_at(int(time.time() + self._config['vote_duration']), vote_end)
 
 
 

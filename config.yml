@@ -15,6 +15,9 @@ standups:
         warmup_duration: 60
         logfile_name: 'standup'
         send_logs_from:  'standup-list@acme.com'
+        vote_duration: 60
+        speak_limit: 3
+        send_logs_from:  'keeb@awesome.com'
         send_logs_to:
             - 'keeb@acme.com'
 
