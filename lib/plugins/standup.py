@@ -1,13 +1,10 @@
-
 import time
 import archives
 
-
 class Standup(object):
-
     def __init__(self, name, irc, server, global_config, config):
         self._name = name
-        self._archives = archives.EmailDiskArchives(global_config, config)
+        self._archives = archives.DiskArchives(global_config, config)
         self._irc = irc
         self._server = server
         self._global_config = global_config
@@ -23,8 +20,9 @@ class Standup(object):
         self._action_voting = False
         self._vote_count = 0
         self._nicks_voted = None
+        self._topic_contributors = None
+        self._interrupted = False
 
-        self._topics = None
         self._action_items = None
 
     def _register_handlers(self):
@@ -86,10 +84,13 @@ class Standup(object):
         if self._starting is True or self._in_progress is True:
             self._send_msg(target, nick, 'Cannot start a standup twice.')
             return
+
         self._owner = nick
         self._server.privmsg(self._config['primary_channel'],
                 'Starting a standup "{0}" on {1}'.format(self._name, self._config['standup_channel']))
         self._starting = True
+        nick_list = []
+
         def list_users(conn, event):
             self._irc.remove_global_handler('namreply', list_users)
             users = event.arguments.pop().split(' ')
@@ -101,8 +102,8 @@ class Standup(object):
                     '{0}: Please say something to be part of the standup (starting in {1} seconds)'.format(
                         ', '.join(users), self._config['warmup_duration']))
             self._irc.add_global_handler('namreply', list_users)
-        self._server.names([self._config['standup_channel']])
-        nick_list = []
+
+
         def gather_reply(conn, event):
             if self._starting is False:
                 return
@@ -111,7 +112,17 @@ class Standup(object):
             nick = event.source.split('!')[0].lower()
             if nick not in nick_list:
                 nick_list.append(nick)
-        self._irc.add_global_handler('pubmsg', gather_reply)
+
+        def topic_contributor(conn, event):
+            print "new topic contributor event"
+            nick = event.source().split('!')[0].lower()
+            if nick == self._current_user:
+                return
+            
+            if nick in self._topic_contributors:
+                return
+            self._topic_contributors.append(nick)
+
         def start():
             self._starting = False
             self._in_progress = True
@@ -125,17 +136,21 @@ class Standup(object):
             self._archives.new(self._name)
             self._user_late_list = []
             self._parking = []
-            self._topics = []
             self._action_items = {}
             self._server.privmsg(self._config['standup_channel'],
                     'Let\'s start the standup with {0}'.format(', '.join(nick_list)))
             self._archives.write('*** Starting with: {0}'.format(', '.join(nick_list)))
             self._user_list = nick_list
             self._current_user = nick_list[0]
+            self._topic_contributors = []
             self._send_msg(self._config['standup_channel'], self._current_user,
                     'You start.')
+            self._irc.add_global_handler('pubmsg', topic_contributor)
             self._set_speak_timer()
             self._archives.write('*** Current: {0}'.format(self._current_user))
+
+        self._irc.add_global_handler('pubmsg', gather_reply)
+        self._server.names([self._config['standup_channel']])
         self._irc.execute_at(int(time.time() + self._config['warmup_duration']), start)
 
     def _set_speak_timer(self):
@@ -149,13 +164,18 @@ class Standup(object):
 
     def _cmd_topic(self, target, nick, args):
         self._send_msg(target, nick, 'topic acknowledged. proceed.')
-        self._topics.append(args)
-        # how the fuck do i log this separately using the current framework?
+        topic = "-".join(args)
+        _archives = archives.DiskArchives(self._global_config, self._config)
+        _archives.new('#{0}.log'.format(topic))
+        def log_line(conn, event):
+            nick = event.source().split('!')[0].lower()
+            said = "".join(event.arguments())
+            _archives.write("".join([nick, "||", said]))
+
+        self._irc.add_global_handler('pubmsg', log_line)
 
 
     def _cmd_action(self, target, nick, args):
-        # should probably limit this to the organizer.
-        # voting open to everyone. votes are counted by +1 or -1
         if self._action_voting:
             self._send_msg(target, nick, 'vote is already in progress')
             return
@@ -167,7 +187,6 @@ class Standup(object):
                 return
             nick = event.source().split('!')[0].lower()
             said = event.arguments()
-            print nick, "said", said
             if "+1" in said:
                 if nick in self._nicks_voted:
                     self._server.privmsg(self._config['primary_channel'], "{0} has already voted".format(nick))
@@ -181,17 +200,14 @@ class Standup(object):
                     self._vote_count -= 1
                     self._nicks_voted.append(nick)
 
-
         self._vote_count = 0
         self._action_voting = True
         self._server.privmsg(self._config['primary_channel'], 'action item acknowledged. opening for voting for the next 1 minute')
         self._irc.add_global_handler('pubmsg', gather_reply)
 
-
         def vote_end():
             self._action_voting = False
             self._server.privmsg(self._config['primary_channel'], "voting has ended. {0} people voted with a total score of {1}".format(len(self._nicks_voted), self._vote_count))
-            
 
         self._irc.execute_at(int(time.time() + self._config['vote_duration']), vote_end)
 
@@ -222,22 +238,51 @@ class Standup(object):
         self._send_msg(target, nick, 'Added {0}.'.format(to_add))
 
     def _cmd_next(self, target=None, nick=None, args=None):
+
+        def interrupt_next(conn, event):
+            print "received event"
+            nick = event.source().split('!')[0].lower()
+            if nick in self._topic_contributors:
+                self._server.privmsg(self._config['standup_channel'], "Interrupted by {0}. {1} please call next again after this conflict has been resolved.".format(nick, self._current_user))
+                self._interrupted = True
+
+        def real_next():
+            self._user_list.pop(0)
+            if not self._user_list:
+                self._cmd_stop()
+                return
+            self._current_user = self._user_list[0]
+            self._send_msg(self._config['standup_channel'], self._current_user,
+                    'You\'re next.')
+            self._set_speak_timer()
+            self._topic_contributors = []
+            self._archives.write('*** Current: {0}'.format(self._current_user))
+            
         """ next: when you are done talking """
         if self._in_progress is False:
             self._send_msg(target, nick, 'No standup in progress.')
             return
+
         if nick and nick != self._current_user:
             self._send_msg(target, nick, 'Only {0} can say "next".'.format(self._current_user))
             return
-        self._user_list.pop(0)
-        if not self._user_list:
-            self._cmd_stop()
-            return
-        self._current_user = self._user_list[0]
-        self._send_msg(self._config['standup_channel'], self._current_user,
-                'You\'re next.')
-        self._set_speak_timer()
-        self._archives.write('*** Current: {0}'.format(self._current_user))
+
+        def placeholder():
+            if len(self._topic_contributors) > 0:
+                print "contributors > 1"
+                self._server.privmsg(self._config['standup_channel'], "cc {0}".format(" ".join(self._topic_contributors)))
+                self._server.privmsg(self._config['standup_channel'], "Unless interrupted in the next 5 seconds,  we'll move on to the next speaker")
+
+                self._irc.add_global_handler('pubmsg', interrupt_next)
+                print "added global handler"
+                from time import sleep
+                sleep(5)
+                self._irc.remove_global_handler('pubmsg', interrupt_next)
+                if not self._interrupted:
+                    real_next()
+
+        placeholder()
+
 
     def _cmd_skip(self, target, nick, args):
         """ skip <nick>: skip a person """

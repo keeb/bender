@@ -4,6 +4,10 @@ port: 6667
 nick: 'gordn'
 name: 'Gordon the Turtle'
 logs: '/logs'
+name: 'dotCloud Gordon'
+channel: '#keebs-awesome'
+logs: 'logs'
+>>>>>>> Fix archive log saving
 timezone: 'US/Pacific'
 smtp_server: '127.0.0.1'
 password: 'somepassword!'
@@ -17,6 +21,7 @@ standups:
         send_logs_from:  'standup-list@acme.com'
         vote_duration: 60
         speak_limit: 3
+        logfile_name: 'gordon'
         send_logs_from:  'keeb@awesome.com'
         send_logs_to:
             - 'keeb@acme.com'
