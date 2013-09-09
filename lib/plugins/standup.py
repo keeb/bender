@@ -115,7 +115,7 @@ class Standup(object):
 
         def topic_contributor(conn, event):
             print "new topic contributor event"
-            nick = event.source().split('!')[0].lower()
+            nick = event.source.split('!')[0].lower()
             if nick == self._current_user:
                 return
             
@@ -168,7 +168,7 @@ class Standup(object):
         _archives = archives.DiskArchives(self._global_config, self._config)
         _archives.new('#{0}.log'.format(topic))
         def log_line(conn, event):
-            nick = event.source().split('!')[0].lower()
+            nick = event.source.split('!')[0].lower()
             said = "".join(event.arguments())
             _archives.write("".join([nick, "||", said]))
 
@@ -185,7 +185,7 @@ class Standup(object):
         def gather_reply(conn, event):
             if not self._action_voting:
                 return
-            nick = event.source().split('!')[0].lower()
+            nick = event.source.split('!')[0].lower()
             said = event.arguments()
             if "+1" in said:
                 if nick in self._nicks_voted:
@@ -241,7 +241,7 @@ class Standup(object):
 
         def interrupt_next(conn, event):
             print "received event"
-            nick = event.source().split('!')[0].lower()
+            nick = event.source.split('!')[0].lower()
             if nick in self._topic_contributors:
                 self._server.privmsg(self._config['standup_channel'], "Interrupted by {0}. {1} please call next again after this conflict has been resolved.".format(nick, self._current_user))
                 self._interrupted = True
