@@ -74,6 +74,14 @@ class Standup(object):
             return
         self._send_msg(target, nick, 'WTF?! Try "help"')
 
+    def _topic_contributor(self, conn, event):
+        nick = event.source.split('!')[0].lower()
+        if nick == self._current_user:
+            return
+        if nick in self._topic_contributors:
+            return
+        self._topic_contributors.append(nick)
+
     def _cmd_start(self, target, nick, args):
         """ start: start a standup
 
@@ -113,19 +121,11 @@ class Standup(object):
             if nick not in nick_list:
                 nick_list.append(nick)
 
-        def topic_contributor(conn, event):
-            print "new topic contributor event"
-            nick = event.source.split('!')[0].lower()
-            if nick == self._current_user:
-                return
-            
-            if nick in self._topic_contributors:
-                return
-            self._topic_contributors.append(nick)
 
         def start():
             self._starting = False
             self._in_progress = True
+            self._interrupted = False
             self._started = time.time()
             # Stop gathering
             self._irc.remove_global_handler('pubmsg', gather_reply)
@@ -145,7 +145,7 @@ class Standup(object):
             self._topic_contributors = []
             self._send_msg(self._config['standup_channel'], self._current_user,
                     'You start.')
-            self._irc.add_global_handler('pubmsg', topic_contributor)
+            self._irc.add_global_handler('pubmsg', self._topic_contributor)
             self._set_speak_timer()
             self._archives.write('*** Current: {0}'.format(self._current_user))
 
@@ -169,7 +169,7 @@ class Standup(object):
         _archives.new('#{0}.log'.format(topic))
         def log_line(conn, event):
             nick = event.source.split('!')[0].lower()
-            said = "".join(event.arguments())
+            said = "".join(event.arguments)
             _archives.write("".join([nick, "||", said]))
 
         self._irc.add_global_handler('pubmsg', log_line)
@@ -186,7 +186,7 @@ class Standup(object):
             if not self._action_voting:
                 return
             nick = event.source.split('!')[0].lower()
-            said = event.arguments()
+            said = event.arguments
             if "+1" in said:
                 if nick in self._nicks_voted:
                     self._server.privmsg(self._config['primary_channel'], "{0} has already voted".format(nick))
@@ -238,15 +238,18 @@ class Standup(object):
         self._send_msg(target, nick, 'Added {0}.'.format(to_add))
 
     def _cmd_next(self, target=None, nick=None, args=None):
-
+        self._interrupted = False
         def interrupt_next(conn, event):
-            print "received event"
             nick = event.source.split('!')[0].lower()
             if nick in self._topic_contributors:
                 self._server.privmsg(self._config['standup_channel'], "Interrupted by {0}. {1} please call next again after this conflict has been resolved.".format(nick, self._current_user))
                 self._interrupted = True
+                self._irc.remove_global_handler('pubmsg', interrupt_next)
 
         def real_next():
+            if self._interrupted:
+                return
+
             self._user_list.pop(0)
             if not self._user_list:
                 self._cmd_stop()
@@ -257,6 +260,7 @@ class Standup(object):
             self._set_speak_timer()
             self._topic_contributors = []
             self._archives.write('*** Current: {0}'.format(self._current_user))
+            self._irc.remove_global_handler('pubmsg', interrupt_next)
             
         """ next: when you are done talking """
         if self._in_progress is False:
@@ -267,22 +271,14 @@ class Standup(object):
             self._send_msg(target, nick, 'Only {0} can say "next".'.format(self._current_user))
             return
 
-        def placeholder():
-            if len(self._topic_contributors) > 0:
-                print "contributors > 1"
-                self._server.privmsg(self._config['standup_channel'], "cc {0}".format(" ".join(self._topic_contributors)))
-                self._server.privmsg(self._config['standup_channel'], "Unless interrupted in the next 5 seconds,  we'll move on to the next speaker")
+        if len(self._topic_contributors) > 0:
+            print "contributors > 1"
+            self._server.privmsg(self._config['standup_channel'], "cc {0}".format(" ".join(self._topic_contributors)))
+            self._server.privmsg(self._config['standup_channel'], "Unless interrupted in the next 5 seconds,  we'll move on to the next speaker")
+            self._irc.add_global_handler('pubmsg', interrupt_next)
+            print "added global handler"
 
-                self._irc.add_global_handler('pubmsg', interrupt_next)
-                print "added global handler"
-                from time import sleep
-                sleep(5)
-                self._irc.remove_global_handler('pubmsg', interrupt_next)
-                if not self._interrupted:
-                    real_next()
-
-        placeholder()
-
+        self._irc.execute_at(int(time.time() + 5), real_next)
 
     def _cmd_skip(self, target, nick, args):
         """ skip <nick>: skip a person """
