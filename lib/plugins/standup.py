@@ -109,7 +109,6 @@ class Standup(object):
             self._server.privmsg(self._config['standup_channel'],
                     '{0}: Please say something to be part of the standup (starting in {1} seconds)'.format(
                         ', '.join(users), self._config['warmup_duration']))
-            self._irc.add_global_handler('namreply', list_users)
 
 
         def gather_reply(conn, event):
@@ -149,6 +148,7 @@ class Standup(object):
             self._set_speak_timer()
             self._archives.write('*** Current: {0}'.format(self._current_user))
 
+        self._irc.add_global_handler('namreply', list_users)
         self._irc.add_global_handler('pubmsg', gather_reply)
         self._server.names([self._config['standup_channel']])
         self._irc.execute_at(int(time.time() + self._config['warmup_duration']), start)
