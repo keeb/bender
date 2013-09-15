@@ -145,7 +145,6 @@ class Standup(object):
             self._send_msg(self._config['standup_channel'], self._current_user,
                     'You start.')
             self._irc.add_global_handler('pubmsg', self._topic_contributor)
-            self._set_speak_timer()
             self._archives.write('*** Current: {0}'.format(self._current_user))
 
         self._irc.add_global_handler('namreply', list_users)
@@ -153,14 +152,6 @@ class Standup(object):
         self._server.names([self._config['standup_channel']])
         self._irc.execute_at(int(time.time() + self._config['warmup_duration']), start)
 
-    def _set_speak_timer(self):
-        nick = self._current_user
-        def warn_user():
-            if self._in_progress is False or self._current_user != nick:
-                return
-            self._send_msg(self._config['standup_channel'], self._current_user,
-                    'Hurry up! You reached {0} minutes!'.format(self._config['speak_limit']))
-            self._irc.execute_at(int(time.time() + self._config['speak_limit'] * 60), warn_user)
 
     def _cmd_topic(self, target, nick, args):
         self._send_msg(target, nick, 'topic acknowledged. proceed.')
@@ -257,7 +248,6 @@ class Standup(object):
             self._current_user = self._user_list[0]
             self._send_msg(self._config['standup_channel'], self._current_user,
                     'You\'re next.')
-            self._set_speak_timer()
             self._topic_contributors = []
             self._archives.write('*** Current: {0}'.format(self._current_user))
             self._irc.remove_global_handler('pubmsg', interrupt_next)
