@@ -264,11 +264,11 @@ class Standup(object):
         if len(self._topic_contributors) > 0:
             print "contributors > 1"
             self._server.privmsg(self._config['standup_channel'], "cc {0}".format(" ".join(self._topic_contributors)))
-            self._server.privmsg(self._config['standup_channel'], "Unless interrupted in the next 5 seconds,  we'll move on to the next speaker")
+            self._server.privmsg(self._config['standup_channel'], "Unless interrupted in the next 20 seconds,  we'll move on to the next speaker")
             self._irc.add_global_handler('pubmsg', interrupt_next)
             print "added global handler"
 
-        self._irc.execute_at(int(time.time() + 5), real_next)
+        self._irc.execute_at(int(time.time() + 20), real_next)
 
     def _cmd_skip(self, target, nick, args):
         """ skip <nick>: skip a person """
