@@ -157,7 +157,7 @@ class Standup(object):
         self._send_msg(target, nick, 'topic acknowledged. proceed.')
         topic = "-".join(args)
         _archives = archives.DiskArchives(self._global_config, self._config)
-        _archives.new('#{0}.log'.format(topic.replace('/', '-')))
+        _archives.new('#{0}'.format(topic.replace('/', '-')))
         def log_line(conn, event):
             nick = event.source.split('!')[0].lower()
             said = "".join(event.arguments)
