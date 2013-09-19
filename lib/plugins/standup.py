@@ -157,7 +157,7 @@ class Standup(object):
         self._send_msg(target, nick, 'topic acknowledged. proceed.')
         topic = "-".join(args)
         _archives = archives.DiskArchives(self._global_config, self._config)
-        _archives.new('#{0}.log'.format(topic))
+        _archives.new('#{0}.log'.format(topic.replace('/', '-')))
         def log_line(conn, event):
             nick = event.source.split('!')[0].lower()
             said = "".join(event.arguments)
@@ -300,6 +300,9 @@ class Standup(object):
         self._parking.append('({0}) {1}'.format(nick, ' '.join(args)))
         self._send_msg(target, nick, 'Parked.')
 
+    def _cmd_ping(self, target, nick, args):
+        self._send_msg(target, nick, 'pong')
+
     def _cmd_stop(self, target=None, nick=None, args=None):
         """ stop: stop a standup """
         if self._in_progress is False:
@@ -308,6 +311,8 @@ class Standup(object):
         if self._owner and nick and self._owner != nick:
             self._send_msg(target, nick, 'Only {0} can stop the standup (he started it).'.format(self._owner))
             return
+
+        self._irc.remove_global_handler('pubmsg', interrupt_next)
         self._user_list = None
         self._current_user = None
         self._in_progress = False
