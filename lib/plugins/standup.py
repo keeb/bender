@@ -94,8 +94,8 @@ class Standup(object):
             return
 
         self._owner = nick
-        self._server.privmsg(self._config['primary_channel'],
-                'Starting a standup "{0}" on {1}'.format(self._name, self._config['standup_channel']))
+        self._server.privmsg(self._config['dev_channel'],
+                'Starting the weekly standup "{0}" on {1}'.format(self._name, self._config['standup_channel']))
         self._starting = True
         nick_list = []
 
@@ -180,25 +180,25 @@ class Standup(object):
             said = event.arguments
             if "+1" in said:
                 if nick in self._nicks_voted:
-                    self._server.privmsg(self._config['primary_channel'], "{0} has already voted".format(nick))
+                    self._server.privmsg(self._config['standup_channel'], "{0} has already voted".format(nick))
                 else:
                     self._vote_count += 1
                     self._nicks_voted.append(nick)
             if "-1" in said:
                 if nick in self._nicks_voted:
-                    self._server.privmsg(self._config['primary_channel'], "{0} has already voted".format(nick))
+                    self._server.privmsg(self._config['standup_channel'], "{0} has already voted".format(nick))
                 else:
                     self._vote_count -= 1
                     self._nicks_voted.append(nick)
 
         self._vote_count = 0
         self._action_voting = True
-        self._server.privmsg(self._config['primary_channel'], 'action item acknowledged. opening for voting for the next 1 minute')
+        self._server.privmsg(self._config['standup_channel'], 'action item acknowledged. opening for voting for the next 1 minute')
         self._irc.add_global_handler('pubmsg', gather_reply)
 
         def vote_end():
             self._action_voting = False
-            self._server.privmsg(self._config['primary_channel'], "voting has ended. {0} people voted with a total score of {1}".format(len(self._nicks_voted), self._vote_count))
+            self._server.privmsg(self._config['standup_channel'], "voting has ended. {0} people voted with a total score of {1}".format(len(self._nicks_voted), self._vote_count))
 
         self._irc.execute_at(int(time.time() + self._config['vote_duration']), vote_end)
 
@@ -322,14 +322,10 @@ class Standup(object):
                 'All done! Standup was {0} minutes.'.format(elapsed))
         user_late_list = ', '.join(self._user_late_list)
         self._archives.write('*** Standup was {0} minutes'.format(elapsed))
-        if user_late_list:
-            self._server.privmsg(self._config['primary_channel'], 'Late people on "{0}" standup: {1}'.format(
-                self._name, user_late_list))
-            self._archives.write('*** Late people: {0}'.format(user_late_list))
         if self._parking:
             self._archives.write('Parked topics: ')
-            self._server.privmsg(self._config['primary_channel'], 'Parked topics from "{0}" standup:'.format(self._name))
-            send = lambda m: self._server.privmsg(self._config['primary_channel'], m)
+            self._server.privmsg(self._config['dev_channel'], 'Parked topics from "{0}" standup:'.format(self._name))
+            send = lambda m: self._server.privmsg(self._config['dev_channel'], m)
             for park in self._parking:
                 send('* ' + park)
                 self._archives.write('* ' + park)
@@ -348,5 +344,5 @@ class Standup(object):
 
     def run(self):
         self._register_handlers()
-        self._server.join(self._config['primary_channel'])
+        self._server.join(self._config['dev_channel'])
         self._server.join(self._config['standup_channel'])
