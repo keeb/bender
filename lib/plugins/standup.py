@@ -1,10 +1,14 @@
 import time
 import archives
+import requests
+
+from config import properties
 
 class Standup(object):
     def __init__(self, name, irc, server, global_config, config):
         self._name = name
         self._archives = archives.DiskArchives(global_config, config)
+        self.api_endpoint = properties.get('API_ENDPOINT')
         self._irc = irc
         self._server = server
         self._global_config = global_config
@@ -311,14 +315,13 @@ class Standup(object):
         self._send_msg(target, nick, 'pong')
 
     def _cmd_maintainer(self, target, nick, args):
-        import requests
         try:
             num = int(args[0])
         except:
             self._send_msg(target, nick, 'Invalid input.')
             return
 
-        r = requests.get('http://localhost:5000/lead_maintainer/{0}'.format(args[0]))
+        r = requests.get('{0}/lead_maintainer/{1}'.format(self.api_endpoint, args[0]))
         if r:
             data = r.json()
             self._send_msg(target, nick, 'The lead maintainer for gh#{0} is {1}'.format(args[0], data.get('maintainer')))
@@ -327,14 +330,13 @@ class Standup(object):
 
 
     def _cmd_maintainers(self, target, nick, args):
-        import requests
         try:
             num = int(args[0])
         except:
             self._send_msg(target, nick, 'Invalid input.')
             return
 
-        r = requests.get('http://localhost:5000/maintainers/{0}'.format(args[0]))
+        r = requests.get('{0}/maintainers/{1}'.format(self.api_endpoint, args[0]))
         if r:
             data = r.json()
             self._send_msg(target, nick, 'The maintainer(s) for gh#{0} are {1}'.format(args[0], ', '.join(data.get('maintainers'))))

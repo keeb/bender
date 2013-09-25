@@ -39,7 +39,6 @@ class Bender(object):
                 self._config['port'],
                 self._config['nick'],
                 ircname=self._config['name'])
-        server.join(self._config['channel'])
         self._load_plugins(irc, server)
         while True:
             try:
