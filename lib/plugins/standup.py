@@ -42,10 +42,6 @@ class Standup(object):
 
     def _direct_message(self, event):
         target = event.target
-        if target != self._config['standup_channel']:
-            # Ignoring command outside the standup channel
-            # So we can spawn several standup easily
-            return
         args = [arg for arg in event.arguments[0].split(' ') if arg]
         nick = event.source.split('!')[0].lower()
         args.pop(0)
@@ -95,7 +91,7 @@ class Standup(object):
             return
 
         self._owner = nick
-        self._server.privmsg(self._config['dev_channel'],
+        self._server.privmsg(self._config['standup_channel'],
                 'Starting the weekly standup "{0}" on {1}'.format(self._name, self._config['standup_channel']))
         self._starting = True
         nick_list = []
@@ -314,6 +310,12 @@ class Standup(object):
     def _cmd_ping(self, target, nick, args):
         self._send_msg(target, nick, 'pong')
 
+    def _cmd_eat(self, target, nick, args):
+        self._send_msg(target, nick, 'CACTUS! OM NOM NOM NOM')
+
+    def _cmd_love(self, target, nick, args):
+        self._send_msg(target, nick, 'I love you too <3')
+
     def _cmd_stop(self, target=None, nick=None, args=None):
         """ stop: stop a standup """
         if self._in_progress is False:
@@ -335,17 +337,17 @@ class Standup(object):
 
         if self._parking:
             self._archives.write('Parked topics: ')
-            self._server.privmsg(self._config['dev_channel'], 'Parked topics from "{0}" standup:'.format(self._name))
-            send = lambda m: self._server.privmsg(self._config['dev_channel'], m)
+            self._server.privmsg(self._config['standup_channel'], 'Parked topics from "{0}" standup:'.format(self._name))
+            send = lambda m: self._server.privmsg(self._config['standup_channel'], m)
             for park in self._parking:
                 send('* ' + park)
                 self._archives.write('* ' + park)
 
         if self._topic_list:
             for k,v in self._topic_list.iteritems():
-                self._server.privmsg(self._config['dev_channel'], k)
+                self._server.privmsg(self._config['standup_channel'], k)
                 for i in v:
-                    self._server.privmsg(self._config['dev_channel'], '\t - {0}'.format(i))
+                    self._server.privmsg(self._config['standup_channel'], '\t - {0}'.format(i))
 
         self._archives.close()
         self._parking = False
