@@ -310,11 +310,30 @@ class Standup(object):
     def _cmd_ping(self, target, nick, args):
         self._send_msg(target, nick, 'pong')
 
-    def _cmd_eat(self, target, nick, args):
-        self._send_msg(target, nick, 'CACTUS! OM NOM NOM NOM')
+    def _cmd_maintainer(self, target, nick, args):
+        import requests
+        try:
+            num = int(args[0])
+        except:
+            self._send_msg(target, nick, 'Invalid input.')
+            return
 
-    def _cmd_love(self, target, nick, args):
-        self._send_msg(target, nick, 'I love you too <3')
+        r = requests.get('http://localhost:5000/lead_maintainer/{0}'.format(args[0]))
+        data = r.json()
+        self._send_msg(target, nick, 'The lead maintainer for gh#{0} is {1}'.format(args[0], data.get('maintainer')))
+
+    def _cmd_maintainers(self, target, nick, args):
+        import requests
+        try:
+            num = int(args[0])
+        except:
+            self._send_msg(target, nick, 'Invalid input.')
+            return
+
+        r = requests.get('http://localhost:5000/maintainers/{0}'.format(args[0]))
+        data = r.json()
+        self._send_msg(target, nick, 'The maintainer(s) for gh#{0} are {1}'.format(args[0], ', '.join(data.get('maintainers'))))
+
 
     def _cmd_stop(self, target=None, nick=None, args=None):
         """ stop: stop a standup """
@@ -361,6 +380,7 @@ class Standup(object):
                 self._server.privmsg(target, '{0}: {1}'.format(nick, m))
             return
         self._server.privmsg(target, '{0}: {1}'.format(nick, msg))
+
 
     def run(self):
         self._register_handlers()
