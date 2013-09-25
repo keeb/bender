@@ -319,8 +319,12 @@ class Standup(object):
             return
 
         r = requests.get('http://localhost:5000/lead_maintainer/{0}'.format(args[0]))
-        data = r.json()
-        self._send_msg(target, nick, 'The lead maintainer for gh#{0} is {1}'.format(args[0], data.get('maintainer')))
+        if r:
+            data = r.json()
+            self._send_msg(target, nick, 'The lead maintainer for gh#{0} is {1}'.format(args[0], data.get('maintainer')))
+        else:
+            self._send_msg(target, nick, 'Not found.')
+
 
     def _cmd_maintainers(self, target, nick, args):
         import requests
@@ -331,8 +335,11 @@ class Standup(object):
             return
 
         r = requests.get('http://localhost:5000/maintainers/{0}'.format(args[0]))
-        data = r.json()
-        self._send_msg(target, nick, 'The maintainer(s) for gh#{0} are {1}'.format(args[0], ', '.join(data.get('maintainers'))))
+        if r:
+            data = r.json()
+            self._send_msg(target, nick, 'The maintainer(s) for gh#{0} are {1}'.format(args[0], ', '.join(data.get('maintainers'))))
+        else:
+            self._send_msg(target, nick, 'Not found.')
 
 
     def _cmd_stop(self, target=None, nick=None, args=None):
